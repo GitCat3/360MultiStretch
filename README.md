@@ -13,3 +13,5 @@ The output videos can be played 360 with VLC (both computer/Smartphones or uploa
 ## Requirements
 
 ffmpeg and exiftool
+
+![](screenshot.png)
