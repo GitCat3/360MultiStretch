@@ -393,7 +393,8 @@ function PerformFileTransformations {
     } elseif ($FileType -eq "image") {
         $videoArgs = ""
     }
-     
+    $videoArgs = ""
+
     # Extracts Left fisheye from input
     #& $ffmpegExe -i $InputFile -vf crop=iw/2:ih:0:0 -q:v 1 -y $LeftEyeFile
     & $ffmpegExe -i $InputFile -vf crop=iw/2:ih:0:0  $videoArgs -q:v 1 -y $LeftEyeFile
@@ -551,7 +552,7 @@ function ProcessFolder {
         $Width, $Height = GetSize -FilePath $InputFile.FullName
         PerformCameraMapping -FOV $FOV -WIB $WIB -Height $Height -Width $Width -LeftPitch $LeftPitch -MergeMapFile $MergeMapFile -XmapFile $XmapFile -YmapFile $YmapFile
         $OutputFile = Join-Path $OutputPath "$($InputFile.BaseName)-$SUFFIX$extension"
-        PerformFileTransformations -InputFile $InputFile.FullName -OutputFile $OutputFile
+	PerformFileTransformations -InputFile $InputFile.FullName -OutputFile $OutputFile
         Write-Host "Processamento do arquivo concluído: $($File.FullName)"
     }
 }
