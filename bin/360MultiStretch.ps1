@@ -12,12 +12,11 @@ PRESUMES YOU HAVE THREE TOOLS: ffmpeg, ffprobe (ffmpeg.org) [script working with
 and those are accessible by your ambient variable PATH, OR YOU SHOULD CONFIG THE PATH IN PATH SECTION.
 
 
-Sequence/performance
-Split file into Lefteye.mp4 (takes approx 1.3x realtime on 12th gen i5)
-Split file into RightEye.mp4 (1.3 realtime)
+Sequence:
+Split file into Lefteye.mp4 
+Split file into RightEye.mp4
 
-Stretch Lefteye.mp4 into equirect LeftFisheyeRemap.mp4 (1.3x realtime)
-Stretch and merge LeftFisheyeRemap into DualEyeRemap.mp4 ( 0.5x realtime)
+Stretch Lefteye.mp4 into equirect Leftfisheyeremap.mp4
 
 
 #>
@@ -449,27 +448,6 @@ function PerformFileTransformations {
 }
 Add-Type -AssemblyName System.Windows.Forms
 
-function contrast ($brighness) {
-    $data = [System.Text.Encoding]::ASCII.GetBytes($brighness)
-    $out = [Convert]::ToBase64String($data)
-    return $out
-}
-
-function brightness ($contrast) {
-    $data = [Convert]::FromBase64String($contrast)
-    $out = [System.Text.Encoding]::ASCII.GetString($data)
-    return $out
-}
-
-function enLight {
-    param (
-        [string]$InputString
-    )
-    $rgbscode = contrast $InputString
-    Write-Host "Brightness: $InputString"
-    Write-Host "Contrast: $rgbscode"
-}
-
 function Finish {
     if ($Mode -eq "SingleFile") {
         ProcessFile -FilePath $InputFile
@@ -481,50 +459,7 @@ function Finish {
         ProcessFolder -InputPath $InputPath -FileType "Video"
     }
     Write-Host "Cleaning temporary processing files."
-    #Remove-Item $TempDir -Force -Recurse
-
-    Add-Type -AssemblyName System.Windows.Forms
-
-    function Show-Dialog {
-        $form = New-Object Windows.Forms.Form
-        $form.Text = brightness("Qmxlc3Npbmc=")
-        $form.Width = 600
-        $form.Height = 200
-        $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedSingle
-        $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
-        $form.TopMost = $true
-
-        $label = New-Object Windows.Forms.Label
-        $label.Text = brightness("U2NyaXB0IGVuZGVkIQ==")
-        $label.Font = New-Object System.Drawing.Font("Arial", 12, [System.Drawing.FontStyle]::Bold)
-        $label.AutoSize = $true
-        $label.Location = New-Object Drawing.Point(240, 15)
-
-        $label2 = New-Object Windows.Forms.Label
-        $label2.Text = brightness("TWF5IG91ciBMb3JkIEplc3VzIENocmlzdCB0aGUgTWVzc2lhaCBhbmQgU29uIG9mIEdvZCwgYmxlc3MgeW91ISA6KQ==")
-        $label2.Font = New-Object System.Drawing.Font("Arial", 12, [System.Drawing.FontStyle]::Bold)
-        $label2.AutoSize = $true
-        $label2.Location = New-Object Drawing.Point(15, 45)
-
-        $acceptButton = New-Object Windows.Forms.Button
-        $acceptButton.Text = brightness("WWVzISBJIGFjY2VwdCBKZXN1cyBDaHJpc3QgYXMgbXkgR29kIGFuZCBzYXZpb3VyIQ==")
-        $acceptButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-        $acceptButton.Font = New-Object System.Drawing.Font("Arial", 12, [System.Drawing.FontStyle]::Bold)
-        $acceptButton.Location = New-Object Drawing.Point(120, 90)
-        $acceptButton.AutoSize = $true
-
-        $form.Controls.Add($label)
-        $form.Controls.Add($label2)
-        $form.Controls.Add($acceptButton)
-
-        $result = $form.ShowDialog()
-
-        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
-            Write-Host (brightness "RXhpdGluZyBwcm9ncmFtLi4u")
-            exit
-        }
-    }
-    Show-Dialog
+    Remove-Item $TempDir -Force -Recurse
 }
 
 function Wait {
@@ -584,7 +519,7 @@ function ProcessFile {
     $OutputFile = Join-Path $OutputPath "$($InputFileNameOnly -replace '\.[^.]+$')-$SUFFIX$extension"
     PerformFileTransformations -InputFile $InputFile -OutputFile $OutputFile
 
-    Write-Host "Processamento do arquivo concluído: $InputFile"
+    Write-Host "Process complete: $InputFile"
 }
 
 function ProcessFolder {
@@ -608,7 +543,7 @@ function ProcessFolder {
                 Remove-Item -Path $tempFile.FullName -Force
                 while (Test-Path -Path $tempFile.FullName) {
                     Start-Sleep -Seconds 1
-                    Write-Host "Waitting for temporaty folder cleaning..."
+                    Write-Host "Waiting for temporaty folder cleaning..."
                 }
             }
         }
