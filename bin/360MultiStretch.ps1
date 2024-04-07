@@ -10,6 +10,16 @@ This script accepts input jpg Dual-Fisheye videos(mp4) or images(jpg) and conver
 It applies perspective corrections and other transformations.
 PRESUMES YOU HAVE THREE TOOLS: ffmpeg, ffprobe (ffmpeg.org) [script working with 6.0] and exiftool (exiftool.org) [script working with 12.65]
 and those are accessible by your ambient variable PATH, OR YOU SHOULD CONFIG THE PATH IN PATH SECTION.
+
+
+Sequence/performance
+Split file into Lefteye.mp4 (takes approx 1.3x realtime on 12th gen i5)
+Split file into RightEye.mp4 (1.3 realtime)
+
+Stretch Lefteye.mp4 into equirect LeftFisheyeRemap.mp4 (1.3x realtime)
+Stretch and merge LeftFisheyeRemap into DualEyeRemap.mp4 ( 0.5x realtime)
+
+
 #>
 #https://ffmpeg.org/ffmpeg-filters.html#v360
 param (
@@ -19,8 +29,6 @@ Add-Type -AssemblyName System.Windows.Forms
 $InvokeDir = (pwd).Path
 $ScriptPath = $PSScriptRoot
 
-#IMPORTANT! IMPORTANT! IMPORTANT: If you are using notepad editor, go to menu VIEW and disable automatic line break (some lines here are too long like im trying making this one to bee so you can see how confuse that can become if you do not do that. trust me it is hard to see some config lines messed with what is only a comentary about an specific configuration or adjustment trust me ok? now you can breath)
-#SKIP THAT PART, WHAT YOU WANT IS WAY DEEPER vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 function Get-FirstFilePath {
     param (
         [string]$DirectoryPath,
@@ -218,13 +226,12 @@ if ([string]::IsNullOrEmpty($OutputPath)) {
     }
 }
 
-# HEEEEEEYYYYYYYYYY
-#HERE!!!! ITS HERE!!!!! HEY!!!!!! HERE!!! uuuuHHHHHHHHUUUUUOOOOOOOOOUUUUUUUUU <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+# Begin processing
 
 #paths, filenames (and camera settings) for user config ###########################################################################################
-$ffmpegExe = ".\bin\ffmpeg.exe"       #considers those files acessible at .\bin\
-$ffprobeExe = ".\bin\ffprobe.exe"     #Or YOU adjust to according path location (alternatively PATH ambient variable and adjust here).
-$exiftoolExe = ".\bin\exiftool.exe"   
+$ffmpegExe = ".\ffmpeg.exe"       
+$ffprobeExe = ".\ffprobe.exe"    
+$exiftoolExe = ".\exiftool.exe"   
 
 $SUFFIX = "Stretched"           #Add this suffix to output filename
 
@@ -254,9 +261,6 @@ $FOV = 193	    # FOV is Horizontal/Vertical fisheye degree field of view (adjust
 #FOV for Vuze XR: 187		[?not confirmed]
 ############################################################################################
 
-#OK THATS ENOUGH, YOU ALREADY SNIFFED TOO MUCH. SAVE THE FILE CLOSE AND GO BACK!!!! <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
 # Internal use #
 $InvokeDir = $PWD.Path
 
@@ -278,8 +282,7 @@ if ($extensionIndex -eq -1) {
 $extension = $InputFile.Substring($extensionIndex).ToLower()
 $InputFileNameOnly = [System.IO.Path]::GetFileName($InputFile)
 $OutputFile = Join-Path $OutputPath "$($InputFileNameOnly -replace '\.[^.]+$')-$SUFFIX$extension"
-#$TempDir = Join-Path $InvokeDir ".tmp"
-$TempDir = "c:\temp\360MultiStretch.ps1"
+$TempDir = Join-Path $InvokeDir ".tmp"
 $MergeMapFile = Join-Path $TempDir "mapping.png"						#merge mapping
 $XmapFile = Join-Path $TempDir "Xmap.pgm"								#X mapping
 $YmapFile = Join-Path $TempDir "Ymap.pgm"								#Y mapping
@@ -618,8 +621,6 @@ function ProcessFolder {
     }
 }
 
-#I`VE ALREADY WARNED YOU... EAVESDROPPER! :D <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 # FILES AND FOLDERS CREATION #
 Write-Host "TempDir is: $TempDir"
 if ([string]::IsNullOrEmpty($TempDir)) {
@@ -659,5 +660,4 @@ else {
     Write-Host "Directory already exists."
 }
 
-# MAIN EXECUTION #
 Finish
