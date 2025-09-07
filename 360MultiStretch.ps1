@@ -388,42 +388,63 @@ function PerformFileTransformations {
         $encoder = "libx264"
     }
 
-    # Extract Left fisheye
-    & $ffmpegExe -i $InputFile -vf "crop=iw/2:ih:0:0" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $LeftEyeFile
+    # Extract file extension
+    $extension = [System.IO.Path]::GetExtension($InputFile).ToLower()
+
+    # Extract Left and Right fisheye halves
+    if ($extension -eq ".mp4") {
+        & $ffmpegExe -i $InputFile -vf crop=iw/2:ih:0:0 -c:v $encoder -y $LeftEyeFile
+        & $ffmpegExe -i $InputFile -vf crop=iw/2:ih:iw/2:0 -c:v $encoder -y $RightEyeFile
+    } else {
+        & $ffmpegExe -i $InputFile -vf crop=iw/2:ih:0:0 -q:v 1 -y $LeftEyeFile
+        & $ffmpegExe -i $InputFile -vf crop=iw/2:ih:iw/2:0 -q:v 1 -y $RightEyeFile
+    }
+
     Wait -For $LeftEyeFile
-    Write-Host "Extract Left fisheye done."
-
-    # Extract Right fisheye
-    & $ffmpegExe -i $InputFile -vf "crop=iw/2:ih:iw/2:0" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $RightEyeFile
     Wait -For $RightEyeFile
-    Write-Host "Extract Right fisheye done."
 
-    # Remap Left Fisheye
-    & $ffmpegExe -i $LeftEyeFile -i $XmapFile -i $YmapFile -lavfi "format=pix_fmts=rgb24,remap" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $LeftFisheyeRemapFile
+    # Remap left fisheye
+    if ($extension -eq ".mp4") {
+        & $ffmpegExe -i $LeftEyeFile -i $XmapFile -i $YmapFile -lavfi "format=rgb24,remap" -c:v $encoder -y $LeftFisheyeRemapFile
+    } else {
+        & $ffmpegExe -i $LeftEyeFile -i $XmapFile -i $YmapFile -lavfi "format=rgb24,remap" -q:v 1 -y $LeftFisheyeRemapFile
+    }
+
     Wait -For $LeftFisheyeRemapFile
-    Write-Host "Left Fisheye remap done."
 
-    # Merge Left and Right fisheye
-    & $ffmpegExe -i $LeftFisheyeRemapFile -i $RightEyeFile -filter_complex "[1:v]scale=-1:$($Height)[scaled];[0:v][scaled]hstack" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $DualFisheyeRemapFile
+    # Merge Left + Right fisheye
+    if ($extension -eq ".mp4") {
+        & $ffmpegExe -i $LeftFisheyeRemapFile -i $RightEyeFile -filter_complex "[1:v]scale=-1:$($Height)[scaled];[0:v][scaled]hstack" -c:v $encoder -y $DualFisheyeRemapFile
+    } else {
+        & $ffmpegExe -i $LeftFisheyeRemapFile -i $RightEyeFile -filter_complex "[1:v]scale=-1:$($Height)[scaled];[0:v][scaled]hstack" -q:v 1 -y $DualFisheyeRemapFile
+    }
+
     Wait -For $DualFisheyeRemapFile
-    Write-Host "Dual fisheye merge done."
 
-    # Equirectangular projection
-    & $ffmpegExe -i $DualFisheyeRemapFile -i $MergeMapFile -lavfi "[0]format=rgb48le,split[a][b];[a]crop=ih:iw/2:0:0,v360=input=fisheye:output=e:ih_fov=$($FOV):iv_fov=$($FOV):rorder=rpy:yaw=$($LeftYaw):pitch=$($LeftPitch):roll=$($LeftRoll)[c];[b]crop=ih:iw/2:iw/2:0,v360=input=fisheye:output=e:yaw=180+$($RightYaw):pitch=$($RightPitch):roll=$($RightRoll):ih_fov=$($FOV):iv_fov=$($FOV)[d];[1]format=gbrp[e];[c][d][e]maskedmerge" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $EquirectangularFile
+    # Convert to equirectangular
+    if ($extension -eq ".mp4") {
+        & $ffmpegExe -i $DualFisheyeRemapFile -i $MergeMapFile -lavfi "[0]format=yuv420p,split[a][b];[a]crop=ih:iw/2:0:0,v360=input=fisheye:output=e:ih_fov=$($FOV):iv_fov=$($FOV):yaw=$($LeftYaw):pitch=$($LeftPitch):roll=$($LeftRoll)[c];[b]crop=ih:iw/2:iw/2:0,v360=input=fisheye:output=e:yaw=180+$($RightYaw):pitch=$($RightPitch):roll=$($RightRoll):ih_fov=$($FOV):iv_fov=$($FOV)[d];[1]format=gbrp[e];[c][d][e]maskedmerge" -c:v $encoder -pix_fmt yuv420p -movflags +faststart -crf 18 -preset slow -y $EquirectangularFile
+    } else {
+        & $ffmpegExe -i $DualFisheyeRemapFile -i $MergeMapFile -lavfi "[0]format=rgb24,split[a][b];[a]crop=ih:iw/2:0:0,v360=input=fisheye:output=e:ih_fov=$($FOV):iv_fov=$($FOV):yaw=$($LeftYaw):pitch=$($LeftPitch):roll=$($LeftRoll)[c];[b]crop=ih:iw/2:iw/2:0,v360=input=fisheye:output=e:yaw=180+$($RightYaw):pitch=$($RightPitch):roll=$($RightRoll):ih_fov=$($FOV):iv_fov=$($FOV)[d];[1]format=gbrp[e];[c][d][e]maskedmerge" -q:v 1 -y $EquirectangularFile
+    }
+
     Wait -For $EquirectangularFile
-    Write-Host "Equirectangular projection done."
 
-    # Re-insert metadata for Google Photos
+    # Insert Google Photos metadata
     if ($extension -eq ".jpg") {
-        & $exiftoolExe -ProjectionType="equirectangular" -UsePanoramaViewer=True -FullPanoWidthPixels=$Width -FullPanoHeightPixels=$Height -CroppedAreaImageWidthPixels=$Width -CroppedAreaImageHeightPixels=$Height -CroppedAreaLeftPixels=0 -CroppedAreaTopPixels=0 -o $OutputFile $EquirectangularFile
+        & $exiftoolExe -ProjectionType="equirectangular" -UsePanoramaViewer=True `
+            -FullPanoWidthPixels=$Width -FullPanoHeightPixels=$Height `
+            -CroppedAreaImageWidthPixels=$Width -CroppedAreaImageHeightPixels=$Height `
+            -CroppedAreaLeftPixels=0 -CroppedAreaTopPixels=0 -o $OutputFile $EquirectangularFile
     } elseif ($extension -eq ".mp4") {
         & $exiftoolExe -tagsfromfile $360MetadataFile -all:all -o $OutputFile $EquirectangularFile
     } else {
         Write-Host "Unsupported file type: $extension"
         exit
     }
+
     Wait -For $OutputFile
-    Write-Host "Metadata re-inserted, file ready for Google Photos."
+    Write-Host "360 metadata applied. Output complete: $OutputFile"
 }
 Add-Type -AssemblyName System.Windows.Forms
 
